@@ -6,6 +6,8 @@
 #include <QScrollArea>
 #include <QVBoxLayout>
 #include "clickablelabel.h"
+#include <QKeyEvent>
+#include <QWheelEvent>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -43,11 +45,24 @@ public:
     void initialiseWindow();
 
     QString shortFileName(QString fileName);
+
+    void adjustScrollBar(QScrollBar *scrollBar, double factor);
+    void scaleImage(double factor);
+protected:
+    void keyPressEvent(QKeyEvent* e);
+    void wheelEvent(QWheelEvent* e);
 private slots:
 
     void on_actionOpen_triggered();
 
+    void on_actionZoom_In_triggered();
+
+    void on_actionZoom_out_triggered();
+
+    void on_actionRestore_picture_s_size_triggered();
+
 private:
+
     bool isInitialised = false;
     QString dirPath;
     QString currentImagePath;
@@ -56,10 +71,12 @@ private:
     QString _ARG;
     QRect displayRect;
     QScrollArea *scrollArea;
-    QLabel *imageLabel;
+//    QLabel *imageLabel;
     QImage image;
     Ui::MainWindow *ui;
     QLabel* label;
     QLabel* labelText;
+    double scaleFactor = 1;
+
 };
 #endif // MAINWINDOW_H

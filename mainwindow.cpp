@@ -18,16 +18,16 @@
 #include <QVBoxLayout>
 #include <QFont>
 #include "clickablelabel.h"
-
-
+#include <QScrollBar>
+#include <QKeyEvent>
 MainWindow::MainWindow(const QString& ARG, QWidget *parent)
-    : QMainWindow(parent), _ARG(ARG), imageLabel(new QLabel),
+    : QMainWindow(parent), _ARG(ARG),// imageLabel(new QLabel),
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    imageLabel->setBackgroundRole(QPalette::Base);
-    imageLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
-    imageLabel->setScaledContents(true);
+//    imageLabel->setBackgroundRole(QPalette::Base);
+//    imageLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+//    imageLabel->setScaledContents(true);
     QVBoxLayout* layoutCenter2 = new QVBoxLayout();
     labelText = new QLabel();
     labelText->setText("CURRENT IMAGE: ");
@@ -40,7 +40,10 @@ MainWindow::MainWindow(const QString& ARG, QWidget *parent)
     ui->frame_3->layout()->setAlignment(Qt::AlignCenter);
     label = new QLabel();
     QVBoxLayout* layoutCenter = new QVBoxLayout();
-    layoutCenter->addWidget(label, Qt::AlignCenter);
+    scrollArea = new QScrollArea();
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setWidget(label);
+    layoutCenter->addWidget(scrollArea, Qt::AlignCenter);
     ui->frame->setLayout(layoutCenter);
 
     qDebug() << "TEXT" << ui->menubar->windowIconText();
@@ -72,7 +75,59 @@ MainWindow::~MainWindow()
 {
     delete ui;
 }
+void MainWindow::adjustScrollBar(QScrollBar *scrollBar, double factor)
+{
+    scrollBar->setValue(int(factor * scrollBar->value()
+                            + ((factor - 1) * scrollBar->pageStep()/2)));
+}
+void MainWindow::scaleImage(double factor)
+{
+    scaleFactor *= factor;
+    if (image.size().width() > ui->frame->geometry().width() || image.size().height() > ui->frame->geometry().height()){
+        label->setPixmap(QPixmap::fromImage(
+                                image.scaled(
+                                    ui->frame->geometry().width() * scaleFactor,
+                                    ui->frame->geometry().height() * scaleFactor,
+                                    Qt::KeepAspectRatio)
+                                )
+                            );
+        qDebug() << "Bigger";
+    } else {
+        label->setPixmap(QPixmap::fromImage(
+                             image.scaled(
+                                 image.size().width() * scaleFactor,
+                                 image.size().height() * scaleFactor,
+                                 Qt::KeepAspectRatio)
+                             )
+                         );
+        qDebug() << "Smaller";
+    }
+}
 
+void MainWindow::on_actionZoom_In_triggered()
+{
+    scaleImage(1.25);
+}
+
+void MainWindow::on_actionZoom_out_triggered()
+{
+    scaleImage(0.75);
+}
+void MainWindow::keyPressEvent(QKeyEvent* e){
+    /* nothing yet here*/
+}
+
+void MainWindow::wheelEvent(QWheelEvent* e){
+    if (e->angleDelta().y() > 0){
+        if(e->modifiers() & Qt::ControlModifier){
+            scaleImage(1.05);
+        }
+    } else if (e->angleDelta().y() < 0){
+        if(e->modifiers() & Qt::ControlModifier){
+            scaleImage(0.95);
+        }
+    }
+}
 void MainWindow::initialiseWindow()
 {
     if(!isInitialised){
@@ -156,6 +211,7 @@ void MainWindow::setImageToFrame(const QString &path, ClickableLabel* imgLabel)
 
 void MainWindow::changeImages(const QString &imagePath)
 {
+    scaleFactor = 1;
     qDebug() << "Trying to change images";
     currentImagePath = imagePath;
     qDebug() << currentImagePath;
@@ -355,4 +411,30 @@ void MainWindow::on_actionOpen_triggered()
 {
     open();
 
+}
+
+
+
+
+void MainWindow::on_actionRestore_picture_s_size_triggered()
+{
+    if (image.size().width() > ui->frame->geometry().width()
+            || image.size().height() > ui->frame->geometry().height()){
+
+        label->setPixmap(QPixmap::fromImage(
+                                 image.scaled(
+                                 displayRect.width() - 100,
+                                 displayRect.height() - 250,
+                                     Qt::KeepAspectRatio)
+                                 )
+                             );
+    } else {
+        label->setPixmap(QPixmap::fromImage(
+                                 image.scaled(
+                                 image.size().width(),
+                                 image.size().height(),
+                                     Qt::KeepAspectRatio)
+                                 )
+                             );
+    }
 }
