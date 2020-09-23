@@ -1,6 +1,6 @@
 # ImageViewer
 
-- Simple application that allows to open and view images.
+- Simple application that allows you to open and view images.
 
 ![1](https://raw.githubusercontent.com/Genomorf/ImageViewer/master/ViewerExample.PNG)
 
