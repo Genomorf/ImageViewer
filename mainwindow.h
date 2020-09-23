@@ -22,14 +22,14 @@ public:
     ~MainWindow();
     // open file from "Open button" and load to center widget
     void open();
-    bool loadFile(const QString &fileName);
+    bool loadImageToCenterFrame(const QString &fileName);
     void setImage(const QImage &newImage);
     // get list of images in current dir
     QList<QString> getImagesFromDir(const QString &path);
 
     QList<QString>::iterator findImageOnCurrenPath();
 
-    void createTwoLayots(); // in main widget
+    void createTwoSideLayots(); // in main widget
 
     void addImagesToTwoLayouts(QList<QString>::iterator it);
     void setImageToFrame(const QString &path, ClickableLabel* imgLabel);
@@ -38,16 +38,17 @@ public:
 
     void getDirPath();
 
-    void createClickLabelList();
+    void initClickLabelList();
 
     void fixCurrenImagePath();
 
-    void initialiseWindow();
+    void createTwoSideFrames();
 
     QString shortFileName(QString fileName);
 
-    void adjustScrollBar(QScrollBar *scrollBar, double factor);
     void scaleImage(double factor);
+
+    void createCenterFrame();
 protected:
     void keyPressEvent(QKeyEvent* e);
     void wheelEvent(QWheelEvent* e);
@@ -62,7 +63,9 @@ private slots:
     void on_actionRestore_picture_s_size_triggered();
 
 private:
-
+    void scaleLabelImageByValue(QLabel* Slabel, int width, int height);
+    void scaleImageByImageSize();
+    void scaleImageByFrameSize();
     bool isInitialised = false;
     QString dirPath;
     QString currentImagePath;
@@ -71,11 +74,10 @@ private:
     QString _ARG;
     QRect displayRect;
     QScrollArea *scrollArea;
-//    QLabel *imageLabel;
     QImage image;
     Ui::MainWindow *ui;
-    QLabel* label;
-    QLabel* labelText;
+    QLabel* labelCenterImage;
+    QLabel* labelTextTop;
     double scaleFactor = 1;
 
 };

@@ -20,123 +20,151 @@
 #include "clickablelabel.h"
 #include <QScrollBar>
 #include <QKeyEvent>
+
 MainWindow::MainWindow(const QString& ARG, QWidget *parent)
-    : QMainWindow(parent), _ARG(ARG),// imageLabel(new QLabel),
+    : QMainWindow(parent), _ARG(ARG),
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-//    imageLabel->setBackgroundRole(QPalette::Base);
-//    imageLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
-//    imageLabel->setScaledContents(true);
-    QVBoxLayout* layoutCenter2 = new QVBoxLayout();
-    labelText = new QLabel();
-    labelText->setText("CURRENT IMAGE: ");
-    QFont font;
-    font.setBold(true);
-    font.setPixelSize(15);
-    labelText->setFont(font);
-    layoutCenter2->addWidget(labelText, Qt::AlignCenter);
-    ui->frame_3->setLayout(layoutCenter2);
-    ui->frame_3->layout()->setAlignment(Qt::AlignCenter);
-    label = new QLabel();
-    QVBoxLayout* layoutCenter = new QVBoxLayout();
-    scrollArea = new QScrollArea();
-    scrollArea->setWidgetResizable(true);
-    scrollArea->setWidget(label);
-    layoutCenter->addWidget(scrollArea, Qt::AlignCenter);
-    ui->frame->setLayout(layoutCenter);
 
-    qDebug() << "TEXT" << ui->menubar->windowIconText();
+    // create empty center frame without image
+    createCenterFrame();
 
-    createClickLabelList();
+    // list with 2 ClickableLabel class items
+    initClickLabelList();
 
     displayRect  = QGuiApplication::primaryScreen()->geometry();
     setFixedSize(displayRect.width() -300, displayRect.height() -200);
 
-
     #ifdef QT_NO_DEBUG
     if (!_ARG.isEmpty()){
-        loadFile(_ARG);
-
-        initialiseWindow();
-
+        loadImageToCenterFrame(_ARG);
+        createTwoSideFrames();
     }
     #else
     currentImagePath = "C:/Users/Alex/Downloads/FcgABhNEY98.jpg";
-    loadFile(currentImagePath);
-    initialiseWindow();
-
+    loadImageToCenterFrame(currentImagePath);
+    createTwoSideFrames();
     #endif
-
-
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
 }
-void MainWindow::adjustScrollBar(QScrollBar *scrollBar, double factor)
+
+void MainWindow::createCenterFrame()
 {
-    scrollBar->setValue(int(factor * scrollBar->value()
-                            + ((factor - 1) * scrollBar->pageStep()/2)));
+    QFont font;
+    font.setBold(true);
+    font.setPixelSize(15);
+
+    labelTextTop = new QLabel();
+    labelTextTop->setText("CURRENT IMAGE: ");
+    labelTextTop->setFont(font);
+
+    // setting text in the top of center frame above centerImage
+    QVBoxLayout* layoutTop = new QVBoxLayout();
+    layoutTop->addWidget(labelTextTop, Qt::AlignCenter);
+    ui->frame_3->setLayout(layoutTop);
+    ui->frame_3->layout()->setAlignment(Qt::AlignCenter);
+
+    labelCenterImage = new QLabel();
+
+    // setting centerImage in the center of the center frame
+    QVBoxLayout* layoutCenter = new QVBoxLayout();
+    scrollArea = new QScrollArea();
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setWidget(labelCenterImage);
+    layoutCenter->addWidget(scrollArea, Qt::AlignCenter);
+    ui->frame->setLayout(layoutCenter);
 }
+
+void MainWindow::scaleLabelImageByValue(QLabel* inputLabel, int width, int height)
+{
+    inputLabel->setPixmap(QPixmap::fromImage(
+                            image.scaled(
+                                width,
+                                height,
+                                Qt::KeepAspectRatio)
+                            )
+                        );
+}
+
 void MainWindow::scaleImage(double factor)
 {
     scaleFactor *= factor;
-    if (image.size().width() > ui->frame->geometry().width() || image.size().height() > ui->frame->geometry().height()){
-        label->setPixmap(QPixmap::fromImage(
-                                image.scaled(
-                                    ui->frame->geometry().width() * scaleFactor,
-                                    ui->frame->geometry().height() * scaleFactor,
-                                    Qt::KeepAspectRatio)
-                                )
-                            );
-        qDebug() << "Bigger";
+
+    // prevent to over zoom the image which cause a lot of lags
+    if (scaleFactor > 8){
+        scaleFactor -= 1;
+        ui->statusbar->showMessage("Maximum zoom!");
+        return;
+    } else if (scaleFactor < 0.01){
+        scaleFactor += 0.05;
+        ui->statusbar->showMessage("Minimum zoom!");
+        return;
+    }
+
+    // constants for easier code reading
+    const int IMAGE_WIDTH  = image.size().width();
+    const int IMAGE_HEIGHT = image.size().height();
+    const int FRAME_WIDTH  = ui->frame->geometry().width();
+    const int FRAME_HEIGHT = ui->frame->geometry().height();
+
+    // scaling image if it's bigger than frame geometry
+    if (IMAGE_WIDTH > FRAME_WIDTH || IMAGE_HEIGHT > FRAME_HEIGHT){
+
+        scaleLabelImageByValue(labelCenterImage, IMAGE_WIDTH * scaleFactor, IMAGE_WIDTH * scaleFactor);
+
     } else {
-        label->setPixmap(QPixmap::fromImage(
-                             image.scaled(
-                                 image.size().width() * scaleFactor,
-                                 image.size().height() * scaleFactor,
-                                 Qt::KeepAspectRatio)
-                             )
-                         );
-        qDebug() << "Smaller";
+
+        scaleLabelImageByValue(labelCenterImage, IMAGE_WIDTH * scaleFactor, IMAGE_WIDTH * scaleFactor);
     }
 }
 
 void MainWindow::on_actionZoom_In_triggered()
+// Zoom In button
 {
     scaleImage(1.25);
 }
 
 void MainWindow::on_actionZoom_out_triggered()
+// Zoom Out button
 {
     scaleImage(0.75);
 }
-void MainWindow::keyPressEvent(QKeyEvent* e){
-    /* nothing yet here*/
+
+void MainWindow::keyPressEvent(QKeyEvent* e)
+{
+    // nothing yet here
 }
 
-void MainWindow::wheelEvent(QWheelEvent* e){
-    if (e->angleDelta().y() > 0){
-        if(e->modifiers() & Qt::ControlModifier){
+void MainWindow::wheelEvent(QWheelEvent* event)
+// ctrl + mouse_wheel will zoom in or zoom out centerImage
+{
+    if (event->angleDelta().y() > 0){
+        if(event->modifiers() & Qt::ControlModifier){
             scaleImage(1.05);
         }
-    } else if (e->angleDelta().y() < 0){
-        if(e->modifiers() & Qt::ControlModifier){
+    } else if (event->angleDelta().y() < 0){
+        if(event->modifiers() & Qt::ControlModifier){
             scaleImage(0.95);
         }
     }
 }
-void MainWindow::initialiseWindow()
+void MainWindow::createTwoSideFrames()
 {
+    // init only once
     if(!isInitialised){
+
         fixCurrenImagePath();
 
         getDirPath();
         images = getImagesFromDir(dirPath);
 
-        createTwoLayots();
+        // creating 2 frames with prev and next images + text labels
+        createTwoSideLayots();
 
         auto foundImage = findImageOnCurrenPath();
 
@@ -146,6 +174,8 @@ void MainWindow::initialiseWindow()
 }
 
 void MainWindow::fixCurrenImagePath()
+// fast way to create working path
+// maybe in docs exist more correct method
 {
     int counter = 0;
     for (auto& j : currentImagePath){
@@ -160,6 +190,7 @@ void MainWindow::fixCurrenImagePath()
 }
 
 void MainWindow::getDirPath()
+// get path of current directory by image path
 {
     qDebug() << "Trying to get dir path...";
     dirPath = currentImagePath;
@@ -169,7 +200,7 @@ void MainWindow::getDirPath()
     qDebug() << "Get dir path: " << dirPath;
 }
 
-void MainWindow::createClickLabelList()
+void MainWindow::initClickLabelList()
 {
     ClickableLabel* imgLabel1 = new ClickableLabel();
     ClickableLabel* imgLabel2 = new ClickableLabel();
@@ -179,6 +210,7 @@ void MainWindow::createClickLabelList()
 }
 
 QList<QString>::iterator MainWindow::findImageOnCurrenPath()
+// QList<QString> images = getImagesFromDir(dirPath);
 {
     qDebug() << "Trying to find image in dir...";
     auto foundImage = std::find(images.begin(), images.end(), currentImagePath);
@@ -197,8 +229,9 @@ void MainWindow::setImageToFrame(const QString &path, ClickableLabel* imgLabel)
     QImageReader reader(path);
     QImage img = reader.read();
     imgLabel->setImagePath(path);
+    // when image is clicked function change prev and next images
     connect(imgLabel, &ClickableLabel::clicked, this, &MainWindow::changeImages);
-
+    //scaleLabelImageByValue
     imgLabel->setPixmap(QPixmap::fromImage(
                             img.scaled(
                                 ui->frame_1->maximumSize().width(),
@@ -217,7 +250,7 @@ void MainWindow::changeImages(const QString &imagePath)
     qDebug() << currentImagePath;
 
     auto foundImage = findImageOnCurrenPath();
-    loadFile(*foundImage);
+    loadImageToCenterFrame(*foundImage);
 
     QImageReader reader(foundImage + 1 == images.end() ?
                             *(images.begin()) :
@@ -263,7 +296,7 @@ void MainWindow::addImagesToTwoLayouts(QList<QString>::iterator it)\
 }
 
 
-void MainWindow::createTwoLayots()
+void MainWindow::createTwoSideLayots()
 {
     QVBoxLayout *layout1 = new QVBoxLayout();
     QVBoxLayout *layout2 = new QVBoxLayout();
@@ -342,9 +375,9 @@ void MainWindow::open()
     QFileDialog dialog(this, tr("Open File"));
     initializeImageFileDialog(dialog, QFileDialog::AcceptOpen);
 
-    while (dialog.exec() == QDialog::Accepted && !loadFile(dialog.selectedFiles().first())) {}
+    while (dialog.exec() == QDialog::Accepted && !loadImageToCenterFrame(dialog.selectedFiles().first())) {}
     if (!currentImagePath.isEmpty()){
-        initialiseWindow();
+        createTwoSideFrames();
 
         getDirPath();
         images = getImagesFromDir(dirPath);
@@ -352,7 +385,7 @@ void MainWindow::open()
     }
 }
 
-bool MainWindow::loadFile(const QString &fileName)
+bool MainWindow::loadImageToCenterFrame(const QString &fileName)
 {
     qDebug() << "Trying to load file to center widget...";
     currentImagePath = fileName;
@@ -374,7 +407,7 @@ bool MainWindow::loadFile(const QString &fileName)
 
     statusBar()->showMessage(message);
     ui->frame->layout()->setAlignment(Qt::AlignCenter);
-    labelText->setText("CURRENT IMAGE: " + shortFileName(fileName));
+    labelTextTop->setText("CURRENT IMAGE: " + shortFileName(fileName));
 
     qDebug() << "Loaded file to center widget";
     return true;
@@ -394,7 +427,7 @@ void MainWindow::setImage(const QImage &newImage)
     if (image.colorSpace().isValid())
         image.convertToColorSpace(QColorSpace::SRgb);
     if (image.size().width() > displayRect.width() || image.size().height() > displayRect.height()){
-        label->setPixmap(QPixmap::fromImage(
+        labelCenterImage->setPixmap(QPixmap::fromImage(
                                  image.scaled(
                                      displayRect.width() - 100,
                                      displayRect.height() - 250,
@@ -402,9 +435,9 @@ void MainWindow::setImage(const QImage &newImage)
                                  )
                              );
     } else {
-        label->setPixmap(QPixmap::fromImage(image));
+        labelCenterImage->setPixmap(QPixmap::fromImage(image));
     }
-    label->setAlignment(Qt::AlignCenter);
+    labelCenterImage->setAlignment(Qt::AlignCenter);
     qDebug() << "Set image to center widget";
 }
 void MainWindow::on_actionOpen_triggered()
@@ -420,8 +453,9 @@ void MainWindow::on_actionRestore_picture_s_size_triggered()
 {
     if (image.size().width() > ui->frame->geometry().width()
             || image.size().height() > ui->frame->geometry().height()){
-
-        label->setPixmap(QPixmap::fromImage(
+        scaleLabelImageByValue(labelCenterImage, displayRect.width() - 100,
+                               displayRect.height() - 250);
+        labelCenterImage->setPixmap(QPixmap::fromImage(
                                  image.scaled(
                                  displayRect.width() - 100,
                                  displayRect.height() - 250,
@@ -429,12 +463,7 @@ void MainWindow::on_actionRestore_picture_s_size_triggered()
                                  )
                              );
     } else {
-        label->setPixmap(QPixmap::fromImage(
-                                 image.scaled(
-                                 image.size().width(),
-                                 image.size().height(),
-                                     Qt::KeepAspectRatio)
-                                 )
-                             );
+        scaleLabelImageByValue(labelCenterImage, image.size().width(),
+                               image.size().width());
     }
 }
