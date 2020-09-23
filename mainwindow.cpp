@@ -329,7 +329,8 @@ void MainWindow::createTwoSideLayots()
     qDebug() << "Created 2 layouts";
 }
 
-QList<QString> MainWindow::getImagesFromDir(const QString &path){
+QList<QString> MainWindow::getImagesFromDir(const QString &path)
+{
     qDebug() << "Trying to get list of images from dir...";
 
     QStringList filters;
@@ -413,7 +414,8 @@ bool MainWindow::loadImageToCenterFrame(const QString &fileName)
     return true;
 }
 
-QString MainWindow::shortFileName(QString fileName){
+QString MainWindow::shortFileName(QString fileName)
+{
     QString shortName;
     for (auto it = fileName.rbegin(); *it != "/" && *it != "\\"; ++it){
         shortName.push_front(*it);
